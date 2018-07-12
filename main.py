@@ -1,30 +1,36 @@
 import numpy as np
 import pandas as pd
 from PIL import Image
-from keras import backend as k
+from keras import backend as K
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
-from keras.layer import Input
+from keras.layers import Input
 from scipy.optimize import fmin_l_bfgs_b
 import time
 
 cImPath = '/home/amiko/Desktop/ImagesKeras/base.jpg' #Base Image
 sImPath = '/home/amiko/Desktop/ImagesKeras/filter.jpg' #Style Image
-genImOutPath = '/home/amiko/Desktop/ImagesKeras/out.jpg' #Image generated
+genImOutPath = '/home/amiko/Desktop/ImagesKeras/' #Image generated
+
+targetHeight = 512
+targetWidth = 512
+targetSize = (targetHeight, targetWidth)
 
 cImageOrig = Image.open(cImPath)
 cImageSizeOrig = cImageOrig.size
 cImage = load_img(path=cImPath, target_size=targetSize)
 cImArr = img_to_array(cImage)
-cImArr = k.variable(preprocess_input(np.expand_dims(cImArr, axis=0)), dtype='float32')
+cImArr = K.variable(preprocess_input(np.expand_dims(cImArr, axis=0)), dtype='float32')
 
 sImage = load_img(path=sImPath, target_size=targetSize)
 sImArr = img_to_array(sImage)
-sImArr = k.variable(preprocess_input(np.expand_dims(sImArr, axis=0)), dtype='float32')
+sImArr = K.variable(preprocess_input(np.expand_dims(sImArr, axis=0)), dtype='float32')
 
-gIm0 = np.random.randint(256, size=(targetWidth, targetHeight,3)).astype('float62')
+gIm0 = np.random.randint(256, size=(targetWidth, targetHeight,3)).astype('float64')
 gIm0 = preprocess_input(np.expand_dims(gIm0, axis=0))
+
+gImPlaceholder = K.placeholder(shape=(1, targetWidth, targetHeight, 3))
 
 #Define of helpers functions
 
@@ -61,7 +67,7 @@ def get_style_loss(ws, Gs, As):
 
 def get_total_loss(gImPlaceholder, alpha=1.0, beta=10000.0):
     F = get_feature_reps(gImPlaceholder, layer_names=[cLayerName], model=gModel)[0]
-    Gs = get_feature(gImPlaceholder, layer_names=sLayerNames, model=gModel)
+    Gs = get_feature_reps(gImPlaceholder, layer_names=sLayerNames, model=gModel)
     contentLoss = get_content_loss(F, P)
     styleLoss = get_style_loss(ws, Gs, As)
     totalLoss = alpha*contentLoss + beta*styleLoss
@@ -91,3 +97,42 @@ def postprocess_array(x):
     x = np.clip(x, 0, 255)
     x = x.astype('uint8')
     return x
+
+def reprocess_array(x):
+    x = np.expand_dims(x.astype('float64'),axis=0)
+    x = preprocess_input(x)
+    return x
+
+def save_original_size(x, target_size=cImageSizeOrig):
+    xIm = Image.fromarray(x)
+    xIm = xIm.resize(target_size)
+    xIm.save(genImOutputPath)
+    return xIm
+
+tf_session = K.get_session()
+cModel = VGG16(include_top=False, weights='imagenet', input_tensor=cImArr)
+sModel = VGG16(include_top=False, weights='imagenet', input_tensor=sImArr)
+gModel = VGG16(include_top=False, weights='imagenet', input_tensor=gImPlaceholder)
+cLayerName = 'block4_conv2'
+sLayerNames = [
+               'block1_conv1',
+               'block2_conv1',
+               'block3_conv1',
+               'block4_conv1',
+               #'block5_conv1' 
+               ]
+
+P = get_feature_reps(x=cImArr, layer_names=[cLayerName], model=cModel)[0]
+As = get_feature_reps(x=sImArr, layer_names=sLayerNames, model=sModel)
+ws = np.ones(len(sLayerNames))/float(len(sLayerNames))
+
+iterations = 600
+x_val = gIm0.flatten()
+start = time.time()
+xopt, f_val, info= fmin_l_bfgs_b(calculate_loss, x_val, fprime=get_grad, maxiter=iterations,disp=True)
+xOut = postprocess_array(xopt)
+xIm = save_original_size(xOut)
+print('Img saved')
+end = time.time()
+print("Time taken: ")+(end-start)
+
