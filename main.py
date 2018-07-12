@@ -1,17 +1,17 @@
 import numpy as np
-impor pandas as pd
-from PIL Import Image
-from keras import backen as k
+import pandas as pd
+from PIL import Image
+from keras import backend as k
 from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
-from keras.layer impor Input
+from keras.layer import Input
 from scipy.optimize import fmin_l_bfgs_b
-impor time
+import time
 
-cImPath = '' #Base Image
-sImPath = '' #Style Image
-genImOutPath = '' #Image generated
+cImPath = '/home/amiko/Desktop/ImagesKeras/base.jpg' #Base Image
+sImPath = '/home/amiko/Desktop/ImagesKeras/filter.jpg' #Style Image
+genImOutPath = '/home/amiko/Desktop/ImagesKeras/out.jpg' #Image generated
 
 cImageOrig = Image.open(cImPath)
 cImageSizeOrig = cImageOrig.size
@@ -75,7 +75,7 @@ def calculate_loss(gImArr):
 
 def get_grad(gImArr):
     if gImArr.shape != (1, targetWidth, targetHeight, 3):
-        gImArr = gImArr.reshape(1, targetWidth, targetHeight,3))
+        gImArr = gImArr.reshape(1, targetWidth, targetHeight,3)
     grad_fcn = k.function([gModel.input], k.gradientes(get_total_loss(gModel.input), [gModel.input]))
     grad = grad_fcn([gImArr])[0].flatten().astype('float64')
     return grad
