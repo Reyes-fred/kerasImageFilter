@@ -11,7 +11,7 @@ import time
 
 cImPath = '/home/amiko/Desktop/ImagesKeras/base.jpg' #Base Image
 sImPath = '/home/amiko/Desktop/ImagesKeras/filter.jpg' #Style Image
-genImOutPath = '/home/amiko/Desktop/ImagesKeras/' #Image generated
+genImOutPath = '/home/amiko/Desktop/ImagesKeras/out.jpg' #Image generated
 
 targetHeight = 512
 targetWidth = 512
@@ -82,7 +82,7 @@ def calculate_loss(gImArr):
 def get_grad(gImArr):
     if gImArr.shape != (1, targetWidth, targetHeight, 3):
         gImArr = gImArr.reshape(1, targetWidth, targetHeight,3)
-    grad_fcn = k.function([gModel.input], k.gradientes(get_total_loss(gModel.input), [gModel.input]))
+    grad_fcn = K.function([gModel.input], K.gradients(get_total_loss(gModel.input), [gModel.input]))
     grad = grad_fcn([gImArr])[0].flatten().astype('float64')
     return grad
 
